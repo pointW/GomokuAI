@@ -34,15 +34,14 @@ class Env(object):
             if done:
                 self.reward = -10
             else:
-                new_reward = self.get_reward()
-                if new_reward != 0:
-                    self.reward = new_reward
+                self.reward = self.get_reward()
             return observation, self.reward, done, _
 
     def render(self):
         b = self.board.stones.reshape(9, 9)
-        p = ''
+        p = '  0 1 2 3 4 5 6 7 8 \n'
         for i in range(9):
+            p += str(i) + ' '
             for j in range(9):
                 if b[i][j] == self.board.STONE_BLACK:
                     p += 'X '
@@ -56,10 +55,15 @@ class Env(object):
         print 'reward = %d' % self.reward
 
     def get_reward(self):
-        c, p = self.board.find_pattern()
-        if c == self.board.STONE_BLACK and (p == 3 or p == 4):
-            return 0.5
-        if c == self.board.STONE_WHITE and (p == 3 or p == 4):
-            return -5
-        return 0
+        # c, p = self.board.find_pattern()
+        # if c == self.board.STONE_BLACK and (p == 3 or p == 4):
+        #     return 1
+        # if c == self.board.STONE_WHITE and (p == 3 or p == 4):
+        #     return -5
+        # return 0
+        value = self.board.find_pattern()
+        if self.board.stones[self.board.last_move] == self.board.STONE_BLACK:
+            return value
+        else:
+            return self.reward - value
 

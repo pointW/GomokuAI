@@ -23,6 +23,9 @@ class Board(object):
         self.stones[mv] = v
         self.last_move = mv
 
+    def move1(self, x, y, v):
+        self.move(x*9+y, v)
+
     @staticmethod
     def _row(arr2d, row, col):
         return arr2d[row, :]
@@ -152,189 +155,300 @@ class Board(object):
         board = self.stones.reshape(9, 9)
         for i in range(8):
             if board[i, :].any():
-                x_min = max(i-2, 0)
+                x_min = max(i-1, 0)
                 break
         for i in range(8):
             if board[:, i].any():
-                y_min = max(i-2, 0)
+                y_min = max(i-1, 0)
                 break
         for i in range(8, -1, -1):
             if board[i, :].any():
-                x_max = min(i+2, 8)
+                x_max = min(i+1, 8)
                 break
         for i in range(8, -1, -1):
             if board[:, i].any():
-                y_max = min(i+2, 8)
+                y_max = min(i+1, 8)
                 break
         return x_min, x_max, y_min, y_max
 
+    # def find_pattern(self):
+    #     board = self.stones.reshape(9, 9)
+    #     mv = self.last_move
+    #     c = self.stones[mv]
+    #     x = mv / 9
+    #     y = mv % 9
+    #     b1 = False
+    #     b2 = False
+    #     empty = False
+    #     count = 1
+    #     # 横向右
+    #     for i in range(x+1, 9):
+    #         if i > 8:
+    #             b1 = True
+    #             break
+    #         if board[i][y] == c:
+    #             count += 1
+    #             # 触边
+    #             if i == 8:
+    #                 b1 = True
+    #         elif board[i][y] == self.STONE_EMPTY:
+    #             if empty:
+    #                 break
+    #             empty = True
+    #         else:
+    #             b1 = True
+    #             break
+    #     # 横向左
+    #     for i in range(x-1, -1, -1):
+    #         if i < 0:
+    #             b2 = True
+    #             break
+    #         if board[i][y] == c:
+    #             count += 1
+    #             if i == 0:
+    #                 b2 = True
+    #         elif board[i][y] == self.STONE_EMPTY:
+    #             if empty:
+    #                 break
+    #             empty = True
+    #         else:
+    #             b2 = True
+    #             break
+    #     if count == 3 and b1 is False and b2 is False:
+    #         return c, 3
+    #     elif count == 4 and (b1 is False or b2 is False):
+    #         return c, 4
+    #
+    #     count = 1
+    #     b1 = False
+    #     b2 = False
+    #     empty = False
+    #     # 纵向下
+    #     for j in range(y+1, 9):
+    #         if j > 8:
+    #             b1 = True
+    #             break
+    #         if board[x][j] == c:
+    #             count += 1
+    #             if j == 8:
+    #                 b1 = True
+    #         elif board[x][j] == self.STONE_EMPTY:
+    #             if empty:
+    #                 break
+    #             empty = True
+    #         else:
+    #             b1 = True
+    #             break
+    #     for j in range(y-1, -1, -1):
+    #         if j < 0:
+    #             b2 = True
+    #             break
+    #         if board[x][j] == c:
+    #             count += 1
+    #             if j == 0:
+    #                 b2 = True
+    #         elif board[x][j] == self.STONE_EMPTY:
+    #             if empty:
+    #                 break
+    #             empty = True
+    #         else:
+    #             b2 = True
+    #             break
+    #     if count == 3 and b1 is False and b2 is False:
+    #         return c, 3
+    #     elif count == 4 and (b1 is False or b2 is False):
+    #         return c, 4
+    #
+    #     count = 1
+    #     b1 = False
+    #     b2 = False
+    #     empty = False
+    #     for i in range(1, 9):
+    #         if x+i > 8 or y+i > 8:
+    #             b1 = True
+    #             break
+    #         if board[x+i][y+i] == c:
+    #             count += 1
+    #             if x+i == 8 or y+i == 8:
+    #                 b1 = True
+    #                 break
+    #         elif board[x+i][y+i] == self.STONE_EMPTY:
+    #             if empty:
+    #                 break
+    #             empty = True
+    #         else:
+    #             b1 = True
+    #             break
+    #     for i in range(1, 9):
+    #         if x-i < 0 or y-i < 0:
+    #             b2 = True
+    #             break
+    #         if board[x-i][y-i] == c:
+    #             count += 1
+    #             if x-i == 0 or y-i == 0:
+    #                 b2 = True
+    #                 break
+    #         elif board[x-i][y-i] == self.STONE_EMPTY:
+    #             if empty:
+    #                 break
+    #             empty = True
+    #         else:
+    #             b2 = True
+    #             break
+    #     if count == 3 and b1 is False and b2 is False:
+    #         return c, 3
+    #     elif count == 4 and (b1 is False or b2 is False):
+    #         return c, 4
+    #
+    #     count = 1
+    #     b1 = False
+    #     b2 = False
+    #     empty = True
+    #     for i in range(1, 9):
+    #         if x+i > 8 or y-i < 0:
+    #             b1 = True
+    #             break
+    #         if board[x+i][y-i] == c:
+    #             count += 1
+    #             if x+i == 8 or y-i == 0:
+    #                 b1 = True
+    #                 break
+    #         elif board[x+i][y-i] == self.STONE_EMPTY:
+    #             if empty:
+    #                 break
+    #             empty = True
+    #         else:
+    #             b1 = True
+    #             break
+    #     for i in range(1, 9):
+    #         if x-i <0 or y+i > 8:
+    #             b2 = True
+    #             break
+    #         if board[x-i][y+i] == c:
+    #             count += 1
+    #             if x-i == 0 or y+i == 8:
+    #                 b2 = True
+    #                 break
+    #         elif board[x-i][y+i] == self.STONE_EMPTY:
+    #             if empty:
+    #                 break
+    #             empty = True
+    #         else:
+    #             b2 = True
+    #             break
+    #     if count == 3 and b1 is False and b2 is False:
+    #         return c, 3
+    #     elif count == 4 and (b1 is False or b2 is False):
+    #         return c, 4
+    #     return c, 0
+
     def find_pattern(self):
         board = self.stones.reshape(9, 9)
+        if self.stones[self.last_move] == self.STONE_WHITE:
+            m_board = board.copy()
+            for i in range(9):
+                for j in range(9):
+                    if m_board[i][j] == 1:
+                        m_board[i][j] = 2
+                    elif m_board[i][j] == 2:
+                        m_board[i][j] = 1
+            board = m_board
         mv = self.last_move
-        c = self.stones[mv]
         x = mv / 9
         y = mv % 9
-        b1 = False
-        b2 = False
-        empty = False
-        count = 1
-        # 横向右
-        for i in range(x+1, 9):
-            if i > 8:
-                b1 = True
+        value = 0
+        for i in range(5):
+            p = board[i:i+5, y]
+            v = self.cal_value(p)
+            if v:
+                value = v
                 break
-            if board[i][y] == c:
-                count += 1
-                # 触边
-                if i == 8:
-                    b1 = True
-            elif board[i][y] == self.STONE_EMPTY:
-                if empty:
-                    break
-                empty = True
-            else:
-                b1 = True
-                break
-        # 横向左
-        for i in range(x-1, -1, -1):
-            if i < 0:
-                b2 = True
-                break
-            if board[i][y] == c:
-                count += 1
-                if i == 0:
-                    b2 = True
-            elif board[i][y] == self.STONE_EMPTY:
-                if empty:
-                    break
-                empty = True
-            else:
-                b2 = True
-                break
-        if count == 3 and b1 is False and b2 is False:
-            return c, 3
-        elif count == 4 and (b1 is False or b2 is False):
-            return c, 4
 
-        count = 1
-        b1 = False
-        b2 = False
-        empty = False
-        # 纵向下
-        for j in range(y+1, 9):
-            if j > 8:
-                b1 = True
+        for i in range(4):
+            p = board[i:i+6, y]
+            v = self.cal_value(p)
+            if v:
+                value = v
                 break
-            if board[x][j] == c:
-                count += 1
-                if j == 8:
-                    b1 = True
-            elif board[x][j] == self.STONE_EMPTY:
-                if empty:
-                    break
-                empty = True
-            else:
-                b1 = True
-                break
-        for j in range(y-1, -1, -1):
-            if j < 0:
-                b2 = True
-                break
-            if board[x][j] == c:
-                count += 1
-                if j == 0:
-                    b2 = True
-            elif board[x][j] == self.STONE_EMPTY:
-                if empty:
-                    break
-                empty = True
-            else:
-                b2 = True
-                break
-        if count == 3 and b1 is False and b2 is False:
-            return c, 3
-        elif count == 4 and (b1 is False or b2 is False):
-            return c, 4
 
-        count = 1
-        b1 = False
-        b2 = False
-        empty = False
-        for i in range(1, 9):
-            if x+i > 8 or y+i > 8:
-                b1 = True
+        for j in range(5):
+            p = board[x, j:j+5]
+            v = self.cal_value(p)
+            if v:
+                value = v
                 break
-            if board[x+i][y+i] == c:
-                count += 1
-                if x+i == 8 or y+i == 8:
-                    b1 = True
-                    break
-            elif board[x+i][y+i] == self.STONE_EMPTY:
-                if empty:
-                    break
-                empty = True
-            else:
-                b1 = True
-                break
-        for i in range(1, 9):
-            if x-i < 0 or y-i < 0:
-                b2 = True
-                break
-            if board[x-i][y-i] == c:
-                count += 1
-                if x-i == 0 or y-i == 0:
-                    b2 = True
-                    break
-            elif board[x-i][y-i] == self.STONE_EMPTY:
-                if empty:
-                    break
-                empty = True
-            else:
-                b2 = True
-                break
-        if count == 3 and b1 is False and b2 is False:
-            return c, 3
-        elif count == 4 and (b1 is False or b2 is False):
-            return c, 4
 
-        count = 1
-        b1 = False
-        b2 = False
-        empty = True
-        for i in range(1, 9):
-            if x+i > 8 or y-i < 0:
-                b1 = True
+        for j in range(4):
+            p = board[x, j:j+6]
+            v = self.cal_value(p)
+            if v:
+                value = v
                 break
-            if board[x+i][y-i] == c:
-                count += 1
-                if x+i == 8 or y-i == 0:
-                    b1 = True
+
+        d = y-x
+        l = 9-d
+        if l >= 5:
+            p = board.diagonal(d)
+            for i in range(l-4):
+                v = self.cal_value(p[i:i+5])
+                if v:
+                    value = v
                     break
-            elif board[x+i][y-i] == self.STONE_EMPTY:
-                if empty:
+        if l >= 6:
+            p = board.diagonal(d)
+            for i in range(l-5):
+                v = self.cal_value(p[i:i+6])
+                if v:
+                    value = v
                     break
-                empty = True
-            else:
-                b1 = True
-                break
-        for i in range(1, 9):
-            if x-i <0 or y+i > 8:
-                b2 = True
-                break
-            if board[x-i][y+i] == c:
-                count += 1
-                if x-i == 0 or y+i == 8:
-                    b2 = True
+
+        m_board = board.copy()
+        for i in range(9):
+            m_board[i] = board[8-i]
+
+        x = 8-x
+        d = y - x
+        l = 9 - d
+        if l >= 5:
+            p = m_board.diagonal(d)
+            for i in range(l - 4):
+                v = self.cal_value(p[i:i + 5])
+                if v:
+                    value = v
                     break
-            elif board[x-i][y+i] == self.STONE_EMPTY:
-                if empty:
+        if l >= 6:
+            p = m_board.diagonal(d)
+            for i in range(l - 5):
+                v = self.cal_value(p[i:i + 6])
+                if v:
+                    value = v
                     break
-                empty = True
-            else:
-                b2 = True
-                break
-        if count == 3 and b1 is False and b2 is False:
-            return c, 3
-        elif count == 4 and (b1 is False or b2 is False):
-            return c, 4
-        return c, 0
+        return value
+
+    @staticmethod
+    def cal_value(p):
+        if len(p) == 5:
+            if p.sum() == 3 and p.max() == 1:
+                # x_x_x, xx__x
+                if p[0] == 1 and p[4] == 1:
+                    return 0
+                # __xxx
+                elif p[0] == 0 and p[1] == 0:
+                    return 0
+                # xxx__
+                elif p[3] == 0 and p[4] == 0:
+                    return 0
+                else:
+                    return 1
+            if p.sum() == 4 and p.max() == 1:
+                # xx_xx, x_xxx
+                if p[0] and p[4]:
+                    return 2
+
+        if len(p) == 6:
+            # _xxxx_
+            if p.sum() == 4 and p.max() == 1 and p[0] == 0 and p[5] == 0:
+                return 5
+            # oxxxx_
+            elif p[1:5].sum() == 4 and p[1:5].max() == 1 and (p[0] == 0 or p[5] == 0):
+                return 2

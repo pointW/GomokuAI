@@ -57,6 +57,7 @@ class DQN(nn.Module):
         self.matches_done = 0
         self.win_count = 0
         self.lose_count = 0
+        self.memory = ReplayMemory(10000)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
@@ -82,7 +83,6 @@ if os.path.exists('model'):
     model = torch.load('model')
 else:
     model = DQN()
-memory = ReplayMemory(10000)
 optimizer = optim.RMSprop(model.parameters())
 model.type(dtype)
 
@@ -96,8 +96,8 @@ def select_action(state):
         data = model(Variable(state.type(dtype), volatile=True)).data
         k = 1
         m = data.topk(k)[1].min()
-        print 'prepare to move on (%d, %d), q = %d' % (m / 9, m % 9, data.topk(k)[0][0][k-1])
-        while state[0][0][m / 9][m % 9] != 0 or m / 9 not in range(x_min, x_max) or m % 9 not in range(y_min, y_max):
+        print 'prepare to move on (%d, %d), q = %f' % (m / 9, m % 9, data.topk(k)[0][0][k-1])
+        while state[0][0][m / 9][m % 9] != 0 or m / 9 not in range(x_min, x_max+1) or m % 9 not in range(y_min, y_max+1):
             k += 1
             m = data.topk(k)[1][0][k-1]
             print 'prepare to move on (%d, %d), q = %f' % (m / 9, m % 9, data.topk(k)[0][0][k - 1])
@@ -105,7 +105,7 @@ def select_action(state):
     else:
         rand = random.randrange(81)
         print 'random move (%d, %d)' % (rand / 9, rand % 9)
-        while state[0][0][rand / 9][rand % 9] != 0 or rand / 9 not in range(x_min, x_max) or rand % 9 not in range(y_min, y_max):
+        while state[0][0][rand / 9][rand % 9] != 0 or rand / 9 not in range(x_min, x_max+1) or rand % 9 not in range(y_min, y_max+1):
             rand = random.randrange(81)
             print 'random move (%d, %d)' % (rand / 9, rand % 9)
         return torch.LongTensor([[rand]])
@@ -115,9 +115,9 @@ last_sync = 0
 
 def optimize_model():
     global last_sync
-    if len(memory) < BATCH_SIZE:
+    if len(model.memory) < BATCH_SIZE:
         return
-    transitions = memory.sample(BATCH_SIZE)
+    transitions = model.memory.sample(BATCH_SIZE)
     batch = Transition(*zip(*transitions))
 
     non_final_mask = torch.ByteTensor(tuple(map(lambda s: s is not None, batch.next_state)))
@@ -180,7 +180,7 @@ for i_episode in count(1):
             next_state = next_state.type(dtype)
         else:
             next_state = None
-        memory.push(state, action, next_state, reward)
+        model.memory.push(state, action, next_state, reward)
         state = next_state
         optimize_model()
         if done:
