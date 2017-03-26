@@ -47,7 +47,7 @@ class ReplayMemory(object):
 class DQN(nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
-        self.conv1 = nn.Conv2d(1, 512, kernel_size=5, stride=1, padding=2)
+        self.conv1 = nn.Conv2d(2, 512, kernel_size=5, stride=1, padding=2)
         self.conv2 = nn.Conv2d(512, 256, kernel_size=3, stride=1)
         self.conv3 = nn.Conv2d(256, 128, kernel_size=3, stride=1)
         self.fc1 = nn.Linear(3200, 640)
@@ -74,7 +74,7 @@ env.reset()
 BATCH_SIZE = 128
 GAMMA = 0.9
 EPS_START = 0.9
-EPS_END = 0.1
+EPS_END = 0.05
 EPS_DECAY = 200
 USE_CUDA = torch.cuda.is_available()
 dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
@@ -83,6 +83,7 @@ if os.path.exists('model'):
     model = torch.load('model')
 else:
     model = DQN()
+
 optimizer = optim.RMSprop(model.parameters())
 model.type(dtype)
 
@@ -97,7 +98,8 @@ def select_action(state):
         k = 1
         m = data.topk(k)[1].min()
         print 'prepare to move on (%d, %d), q = %f' % (m / 9, m % 9, data.topk(k)[0][0][k-1])
-        while state[0][0][m / 9][m % 9] != 0 or m / 9 not in range(x_min, x_max+1) or m % 9 not in range(y_min, y_max+1):
+        while state[0][0][m / 9][m % 9] or state[0][1][m / 9][m % 9] or \
+                m / 9 not in range(x_min, x_max+1) or m % 9 not in range(y_min, y_max+1):
             k += 1
             m = data.topk(k)[1][0][k-1]
             print 'prepare to move on (%d, %d), q = %f' % (m / 9, m % 9, data.topk(k)[0][0][k - 1])
@@ -105,7 +107,8 @@ def select_action(state):
     else:
         rand = random.randrange(81)
         print 'random move (%d, %d)' % (rand / 9, rand % 9)
-        while state[0][0][rand / 9][rand % 9] != 0 or rand / 9 not in range(x_min, x_max+1) or rand % 9 not in range(y_min, y_max+1):
+        while state[0][0][rand / 9][rand % 9] or state[0][1][rand / 9][rand % 9] or \
+                rand / 9 not in range(x_min, x_max+1) or rand % 9 not in range(y_min, y_max+1):
             rand = random.randrange(81)
             print 'random move (%d, %d)' % (rand / 9, rand % 9)
         return torch.LongTensor([[rand]])
@@ -143,6 +146,10 @@ def optimize_model():
 
     loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
 
+    f = open('data', 'a')
+    print >> f, "loss = %f, match = %d, step = %d" % (loss.data[0], model.matches_done, model.steps_done)
+    f.close()
+
     optimizer.zero_grad()
     loss.backward()
     for param in model.parameters():
@@ -160,23 +167,23 @@ for i_episode in count(1):
     state = observation[0]
     state = torch.from_numpy(state)
     state = state.type(dtype)
-    state = state.unsqueeze(0).unsqueeze(0)
+    state = state.unsqueeze(0)
     for t in count():
         action = select_action(state)
         observation, reward, done, _ = env.step(action[0, 0])
         env.render()
-        if reward == 10:
+        if reward == env.REWARD_WIN:
             model.matches_done += 1
             model.win_count += 1
             print 'win rate %d / %d' % (model.win_count, model.matches_done)
-        elif reward == -10:
+        elif reward == env.REWARD_LOSE:
             model.matches_done += 1
             model.lose_count += 1
             print 'win rate %d / %d' % (model.win_count, model.matches_done)
-        reward = torch.Tensor([reward])
+        reward = torch.FloatTensor([reward])
         if not done:
             next_state = observation
-            next_state = torch.from_numpy(next_state).unsqueeze(0).unsqueeze(0)
+            next_state = torch.from_numpy(next_state).unsqueeze(0)
             next_state = next_state.type(dtype)
         else:
             next_state = None

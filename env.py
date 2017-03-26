@@ -1,41 +1,107 @@
+import gym
+import gym_gomoku
 from board1 import Board
 from opponent import Searcher
 import numpy as np
+import random
 
 
 class Env(object):
-    board = Board()
-    opponent = Searcher()
-    reward = 0
+    reward = 0.0
     BLACK = Board.STONE_BLACK
     WHITE = Board.STONE_WHITE
     EMPTY = Board.STONE_EMPTY
+    REWARD_WIN = 10
+    REWARD_LOSE = -10
+
+    def __init__(self):
+        self.board = Board()
+        self.opponent = Searcher()
+        self.env = gym.make('Gomoku9x9-v0')  # default 'beginner' level opponent policy
+        self.env.reset()
+        self.type = 1
 
     def reset(self):
         self.board = Board()
         self.opponent = Searcher()
+        self.env.reset()
+        self.type = 1
 
     def step(self, mv):
+        if self.type == 1:
+            return self.step_1(mv)
+        elif self.type == 2:
+            return self.step_2(mv)
+
+    def step_1(self, mv):
         self.board.move(mv, self.board.STONE_BLACK)
         done, _ = self.board.is_over()
         if done:
-            observation = self.board.stones.reshape(9, 9)
-            self.reward = 10
+            observation = self.make_observation()
+            self.reward = self.REWARD_WIN
             _ = None
             return observation, self.reward, done, _
         else:
             self.reward = self.get_reward()
             self.opponent.board = self.board.stones.reshape(9, 9)
-            _, row, col = self.opponent.search(self.board.STONE_WHITE, depth=2)
-            self.board.move(9*row+col, self.board.STONE_WHITE)
+            _, row, col = self.opponent.search(self.board.STONE_WHITE, depth=1)
+            self.board.move(9 * row + col, self.board.STONE_WHITE)
             done, _ = self.board.is_over()
-            observation = self.board.stones.reshape(9, 9)
+            observation = self.make_observation()
             _ = None
             if done:
-                self.reward = -10
+                self.reward = self.REWARD_LOSE
             else:
                 self.reward = self.get_reward()
             return observation, self.reward, done, _
+
+    def step_2(self, mv):
+        observation, reward, _, info = self.env.step(mv)
+        pre_state = self.board.stones
+        observation = observation.reshape(81)
+        diff = np.where((pre_state != observation))[0]
+        if observation[diff[0]] == self.board.STONE_BLACK:
+            move1 = diff[0]
+            move2 = diff[1]
+        else:
+            move1 = diff[1]
+            move2 = diff[0]
+        self.board.move(move1, self.board.STONE_BLACK)
+        done, _ = self.board.is_over()
+        if done:
+            observation = self.make_observation()
+            self.reward = self.REWARD_WIN
+            _ = None
+            return observation, self.reward, done, _
+        else:
+            self.reward = self.get_reward()
+            self.board.move(move2, self.board.STONE_WHITE)
+            done, _ = self.board.is_over()
+            observation = self.make_observation()
+            _ = None
+            if done:
+                self.reward = self.REWARD_LOSE
+            else:
+                self.reward += self.get_reward()
+            return observation, self.reward, done, _
+
+    def make_observation(self):
+        observation_black = []
+        observation_white = []
+        for i in range(81):
+            if self.board.stones[i] == self.board.STONE_BLACK:
+                observation_black.append(1)
+                observation_white.append(0)
+            elif self.board.stones[i] == self.board.STONE_WHITE:
+                observation_white.append(1)
+                observation_black.append(0)
+            else:
+                observation_black.append(0)
+                observation_white.append(0)
+        observation_black = np.array(observation_black)
+        observation_white = np.array(observation_white)
+        observation = np.array([observation_black.reshape(9, 9), observation_white.reshape(9, 9)])
+        return observation
 
     def render(self):
         b = self.board.stones.reshape(9, 9)
@@ -52,7 +118,7 @@ class Env(object):
             p += '\n'
         print p
         print '%d moves in %d, %d' % (self.board.stones[self.board.last_move], self.board.last_move / 9, self.board.last_move % 9)
-        print 'reward = %d' % self.reward
+        print 'reward = %.1f' % self.reward
 
     def get_reward(self):
         # c, p = self.board.find_pattern()
@@ -62,8 +128,9 @@ class Env(object):
         #     return -5
         # return 0
         value = self.board.find_pattern()
+        reward = value
         if self.board.stones[self.board.last_move] == self.board.STONE_BLACK:
-            return value
+            return reward
         else:
-            return self.reward - value
+            return self.reward - reward
 

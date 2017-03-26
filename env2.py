@@ -20,13 +20,17 @@ class Env2(object):
         pre_state = self.board.stones
         observation = observation.reshape(81)
         diff = np.where((pre_state != observation))[0]
-        move1 = diff[0]
-        move2 = diff[1]
+        if observation[diff[0]] == self.board.STONE_BLACK:
+            move1 = diff[0]
+            move2 = diff[1]
+        else:
+            move1 = diff[1]
+            move2 = diff[0]
         self.board.move(move1, self.board.STONE_BLACK)
         done, _ = self.board.is_over()
         if done:
             observation = self.board.stones.reshape(9, 9)
-            self.reward = 10
+            self.reward = 1
             _ = None
             return observation, self.reward, done, _
         else:
@@ -36,20 +40,22 @@ class Env2(object):
             observation = self.board.stones.reshape(9, 9)
             _ = None
             if done:
-                self.reward = -10
+                self.reward = -1
             else:
                 new_reward = self.get_reward()
                 self.reward += new_reward
             return observation, self.reward, done, _
 
     def get_reward(self):
-        c, p = self.board.find_pattern()
-        if c == self.board.STONE_BLACK and (p == 3 or p == 4):
-            return 1
-        if c == self.board.STONE_WHITE and (p == 3 or p == 4):
-            return -5
-        return 0
+        value = self.board.find_pattern()
+        reward = value*0.1
+        if self.board.stones[self.board.last_move] == self.board.STONE_BLACK:
+            return reward
+        else:
+            return self.reward - reward
 
 
 env = Env2()
-env.step(40)
+observation, reward, done, _ = env.step(40)
+a = 1
+

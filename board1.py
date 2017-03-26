@@ -153,11 +153,11 @@ class Board(object):
         x_max = 8
         y_max = 8
         board = self.stones.reshape(9, 9)
-        for i in range(8):
+        for i in range(9):
             if board[i, :].any():
                 x_min = max(i-1, 0)
                 break
-        for i in range(8):
+        for i in range(9):
             if board[:, i].any():
                 y_min = max(i-1, 0)
                 break
@@ -344,6 +344,13 @@ class Board(object):
 
     def find_pattern(self):
         board = self.stones.reshape(9, 9)
+        # t_board = []
+        # for i in range(10):
+        #     for j in range(10):
+        #         if i in (0, 9) or j in (0, 9):
+        #             t_board[i][j] = 3
+        #         else:
+        #             t_board[i][j] = board[i-1][j-1]
         if self.stones[self.last_move] == self.STONE_WHITE:
             m_board = board.copy()
             for i in range(9):
