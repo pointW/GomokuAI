@@ -33,6 +33,28 @@ class Env(object):
         elif self.type == 2:
             return self.step_2(mv)
 
+    def step_pg(self, mv):
+        self.board.move(mv, self.board.STONE_BLACK)
+        done, _ = self.board.is_over()
+        if done:
+            observation = self.make_observation_7()
+            self.reward = self.REWARD_WIN
+            _ = None
+            return observation, self.reward, done, _
+        else:
+            self.reward = self.get_reward()
+            self.opponent.board = self.board.stones.reshape(9, 9)
+            _, row, col = self.opponent.search(self.board.STONE_WHITE, depth=1)
+            self.board.move(9 * row + col, self.board.STONE_WHITE)
+            done, _ = self.board.is_over()
+            observation = self.make_observation_7()
+            _ = None
+            if done:
+                self.reward = self.REWARD_LOSE
+            else:
+                self.reward = self.get_reward()
+            return observation, self.reward, done, _
+
     def step_1(self, mv):
         self.board.move(mv, self.board.STONE_BLACK)
         done, _ = self.board.is_over()
@@ -82,7 +104,7 @@ class Env(object):
             if done:
                 self.reward = self.REWARD_LOSE
             else:
-                self.reward += self.get_reward()
+                self.reward = self.get_reward()
             return observation, self.reward, done, _
 
     def make_observation(self):
@@ -103,6 +125,39 @@ class Env(object):
         observation = np.array([observation_black.reshape(9, 9), observation_white.reshape(9, 9)])
         return observation
 
+    def make_observation_7(self):
+        observation_black = []
+        observation_white = []
+        # observation_empty = []
+        observation_empty = np.zeros(81).reshape(9, 9)
+        for i in range(81):
+            if self.board.stones[i] == self.board.STONE_BLACK:
+                observation_black.append(1)
+                observation_white.append(0)
+                # observation_empty.append(0)
+            elif self.board.stones[i] == self.board.STONE_WHITE:
+                observation_white.append(1)
+                observation_black.append(0)
+                # observation_empty.append(0)
+            else:
+                # observation_empty.append(1)
+                observation_black.append(0)
+                observation_white.append(0)
+        x_min, x_max, y_min, y_max = self.board.move_area()
+        for i in range(x_min, x_max+1):
+            for j in range(y_min, y_max+1):
+                if observation_black[i*9+j] == 0 and observation_white[i*9+j] == 0:
+                    observation_empty[i][j] = 1
+        observation_black = np.array(observation_black).reshape(9, 9)
+        observation_white = np.array(observation_white).reshape(9, 9)
+        observation_empty = np.array(observation_empty).reshape(9, 9)
+        observation_atk_1, observation_atk_2 = self.board.gen_dfs_atk_moves(1)
+        observation_dfs_1, observation_dfs_2 = self.board.gen_dfs_atk_moves(0)
+        observation = np.array([observation_black, observation_white, observation_empty,
+                                observation_atk_1, observation_atk_2,
+                                observation_dfs_1, observation_dfs_2])
+        return observation
+
     def render(self):
         b = self.board.stones.reshape(9, 9)
         p = '  0 1 2 3 4 5 6 7 8 \n'
@@ -118,7 +173,6 @@ class Env(object):
             p += '\n'
         print p
         print '%d moves in %d, %d' % (self.board.stones[self.board.last_move], self.board.last_move / 9, self.board.last_move % 9)
-        print 'reward = %.1f' % self.reward
 
     def get_reward(self):
         # c, p = self.board.find_pattern()

@@ -1,24 +1,24 @@
 from env import Env
 from board1 import Board
+from pg import PolicyNetwork
+import torch
+from torch.autograd import Variable
 
-# env = Env()
+
+env = Env()
 # observation, reward, done, _ = env.step(40)
 # env.render()
 # a = 1
 
-board = Board()
-board.move1(4, 4, 1)
-board.move1(6, 4, 2)
-board.move1(5, 2, 1)
-board.move1(5, 5, 2)
-board.move1(3, 7, 1)
-board.move1(4, 6, 2)
-board.move1(3, 7, 6)
-board.move1(4, 5, 2)
-board.move1(3, 6, 1)
-board.move1(3, 5, 2)
-board.move1(6, 5, 1)
-v1 = board.find_pattern()
-board.move1(2, 5, 2)
-v2 = board.find_pattern()
-a = 1
+model = PolicyNetwork()
+model.type(torch.FloatTensor)
+state = torch.from_numpy(env.make_observation_7())
+state = state.type(torch.FloatTensor)
+state = state.unsqueeze(0)
+states = []
+states.append(state)
+states.append(state)
+states = torch.cat(states)
+a = model(Variable(states)).data
+print a
+
