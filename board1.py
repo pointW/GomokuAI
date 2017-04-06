@@ -10,7 +10,7 @@ class Board(object):
     WIN_STONE_NUM = 5
     WIN_PATTERN = {STONE_BLACK: np.ones(WIN_STONE_NUM, dtype=int) * STONE_BLACK,
                    STONE_WHITE: np.ones(WIN_STONE_NUM, dtype=int) * STONE_WHITE}
-    BOARD_SIZE = 9
+    BOARD_SIZE = 13
     BOARD_SIZE_SQ = BOARD_SIZE ** 2
 
     def __init__(self):
@@ -24,7 +24,7 @@ class Board(object):
         self.last_move = mv
 
     def move1(self, x, y, v):
-        self.move(x*9+y, v)
+        self.move(x*Board.BOARD_SIZE+y, v)
 
     @staticmethod
     def _row(arr2d, row, col):
@@ -150,24 +150,24 @@ class Board(object):
     def move_area(self):
         x_min = 0
         y_min = 0
-        x_max = 8
-        y_max = 8
-        board = self.stones.reshape(9, 9)
-        for i in range(9):
+        x_max = Board.BOARD_SIZE-1
+        y_max = Board.BOARD_SIZE-1
+        board = self.stones.reshape(Board.BOARD_SIZE, Board.BOARD_SIZE)
+        for i in range(Board.BOARD_SIZE):
             if board[i, :].any():
                 x_min = max(i-1, 0)
                 break
-        for i in range(9):
+        for i in range(Board.BOARD_SIZE):
             if board[:, i].any():
                 y_min = max(i-1, 0)
                 break
-        for i in range(8, -1, -1):
+        for i in range(Board.BOARD_SIZE-1, -1, -1):
             if board[i, :].any():
-                x_max = min(i+1, 8)
+                x_max = min(i+1, Board.BOARD_SIZE-1)
                 break
-        for i in range(8, -1, -1):
+        for i in range(Board.BOARD_SIZE-1, -1, -1):
             if board[:, i].any():
-                y_max = min(i+1, 8)
+                y_max = min(i+1, Board.BOARD_SIZE-1)
                 break
         return x_min, x_max, y_min, y_max
 
@@ -343,8 +343,8 @@ class Board(object):
     #     return c, 0
 
     def find_pattern(self):
-        board = self.stones.reshape(9, 9).copy()
-        t_board = np.zeros(11*11, np.int).reshape(11, 11)
+        board = self.stones.reshape(Board.BOARD_SIZE, Board.BOARD_SIZE).copy()
+        t_board = np.zeros((Board.BOARD_SIZE+2)*(Board.BOARD_SIZE+2), np.int).reshape(Board.BOARD_SIZE+2, Board.BOARD_SIZE+2)
         # add an edge of 3 around the board
         # for example:
         # 0 0 0 0 0
@@ -360,9 +360,9 @@ class Board(object):
         # 3 0 0 1 0 0 3
         # 3 0 0 2 2 0 3
         # 3 3 3 3 3 3 3
-        for i in range(11):
-            for j in range(11):
-                if i in (0, 10) or j in (0, 10):
+        for i in range(Board.BOARD_SIZE+2):
+            for j in range(Board.BOARD_SIZE+2):
+                if i in (0, Board.BOARD_SIZE+1) or j in (0, Board.BOARD_SIZE+1):
                     t_board[i][j] = 3
                 else:
                     t_board[i][j] = board[i-1][j-1]
@@ -370,8 +370,8 @@ class Board(object):
         # for white, swap (1, 2)
         if self.stones[self.last_move] == self.STONE_WHITE:
             m_board = board.copy()
-            for i in range(11):
-                for j in range(11):
+            for i in range(Board.BOARD_SIZE+2):
+                for j in range(Board.BOARD_SIZE+2):
                     if m_board[i][j] == 1:
                         m_board[i][j] = 2
                     elif m_board[i][j] == 2:
@@ -380,125 +380,241 @@ class Board(object):
 
         mv = self.last_move
         # because of the edge, x and y have to += 1
-        x = mv / 9 + 1
-        y = mv % 9 + 1
+        x = mv / Board.BOARD_SIZE + 1
+        y = mv % Board.BOARD_SIZE + 1
         value = 0
         # horizonal 5s pattern
         for i in range(self.BOARD_SIZE-5+1+2):
             p = board[i:i+5, y]
-            v, _ = self.cal_value(p)
+            v, _ = self.get_dfs_value_offset(p)
             if v:
                 value = max(v, value)
                 break
         # horizonal 6s pattern
         for i in range(self.BOARD_SIZE-6+1+2):
             p = board[i:i+6, y]
-            v, _ = self.cal_value(p)
+            v, _ = self.get_dfs_value_offset(p)
             if v:
                 value = max(v, value)
                 break
         # vertical 5s pattern
         for j in range(self.BOARD_SIZE-5+1+2):
             p = board[x, j:j+5]
-            v, _ = self.cal_value(p)
+            v, _ = self.get_dfs_value_offset(p)
             if v:
                 value = max(v, value)
                 break
         # vertical 6s pattern
         for j in range(self.BOARD_SIZE-6+1+2):
             p = board[x, j:j+6]
-            v, _ = self.cal_value(p)
+            v, _ = self.get_dfs_value_offset(p)
             if v:
                 value = max(v, value)
                 break
         # compute the length of the diagonal
         d = y-x
-        l = 11-d
+        if d >= 0:
+            l = Board.BOARD_SIZE+2-d
+        else:
+            l = Board.BOARD_SIZE+2+d
         # diagonal 5s pattern
         if l >= 5:
             p = board.diagonal(d)
-            for i in range(l-5+1+2):
-                v, _ = self.cal_value(p[i:i+5])
+            for i in range(l-5+1):
+                v, _ = self.get_dfs_value_offset(p[i:i+5])
                 if v:
                     value = max(v, value)
                     break
         # diagonal 6s pattern
         if l >= 6:
             p = board.diagonal(d)
-            for i in range(l-6+1+2):
-                v, _ = self.cal_value(p[i:i+6])
+            for i in range(l-6+1):
+                v, _ = self.get_dfs_value_offset(p[i:i+6])
                 if v:
                     value = max(v, value)
                     break
         # swap rows to compute another diagonal
         m_board = board.copy()
-        for i in range(11):
-            m_board[i] = board[10-i]
+        for i in range(Board.BOARD_SIZE+2):
+            m_board[i] = board[Board.BOARD_SIZE+1-i]
         # compute the length of the diagonal
-        x = 10-x
+        x = Board.BOARD_SIZE+1-x
         d = y-x
-        l = 11-d
+        if d >= 0:
+            l = Board.BOARD_SIZE+2-d
+        else:
+            l = Board.BOARD_SIZE+2+d
         # patterns of another diagonal
         if l >= 5:
             p = m_board.diagonal(d)
-            for i in range(l-5+1+2):
-                v, _ = self.cal_value(p[i:i+5])
+            for i in range(l-5+1):
+                v, _ = self.get_dfs_value_offset(p[i:i+5])
                 if v:
                     value = max(v, value)
                     break
         if l >= 6:
             p = m_board.diagonal(d)
-            for i in range(l-6+1+2):
-                v, _ = self.cal_value(p[i:i+6])
+            for i in range(l-6+1):
+                v, _ = self.get_dfs_value_offset(p[i:i+6])
                 if v:
                     value = max(v, value)
                     break
         return value
 
+    # @staticmethod
+    # def cal_value(p):
+    #     if len(p) == 5:
+    #         if p.sum() == 3 and p.max() == 1:
+    #             # x_x_x, xx__x
+    #             if p[0] == 1 and p[4] == 1:
+    #                 return 0, None
+    #             # __xxx
+    #             elif p[0] == 0 and p[1] == 0:
+    #                 return 0, None
+    #             # xxx__
+    #             elif p[3] == 0 and p[4] == 0:
+    #                 return 0, None
+    #             # _x_xx
+    #             elif p[2] == 0 and (p[0] == 0 or p[4] == 0):
+    #                 return 0, None
+    #             # _xxx_
+    #             elif p[1:4].sum() == 3:
+    #                 return 1, [0, 4]
+    #         elif p.sum() == 4 and p.max() == 1:
+    #             # xx_xx, x_xxx
+    #             if p[0] and p[4]:
+    #                 return 2, [p.argmin()]
+    #         else:
+    #             return 0, None
+    #
+    #     elif len(p) == 6:
+    #         # _xxxx_
+    #         if p.sum() == 4 and p.max() == 1 and p[0] == 0 and p[5] == 0:
+    #             return 5, None
+    #         # oxxxx_, |xxxx_
+    #         elif p[1:5].sum() == 4 and p[1:5].max() == 1 and (p[0] == 0 or p[5] == 0):
+    #             return 2, [p.argmin()]
+    #         # _x_xx_
+    #         elif p[1] == 1 and p[4] == 1 and p[0] == 0 and p[5] == 0 and p[1:5].sum() == 3:
+    #             return 1, [i for i, v in enumerate(p.tolist()) if v == 0]
+    #         else:
+    #             return 0, None
+    #
+    #     return 0, None
+
+    # @staticmethod
+    # def get_value_and_offset(p):
+    #     if len(p) == 5:
+    #         if p.sum() == 4 and p.max() == 1:
+    #             # xx_xx, x_xxx
+    #             if p[0] and p[4]:
+    #                 return 4, [p.argmin()]
+    #     elif len(p) == 6:
+    #         if p.sum() == 2 and p.max() == 1:
+    #             # __xx__
+    #             if p[2] and p[3]:
+    #                 return 2, [1, 4]
+    #             # _x_x__
+    #             elif p[1] and p[3]:
+    #                 return 2, [2, 4]
+    #             # __x_x_
+    #             elif p[2] and p[4]:
+    #                 return 2, [1, 3]
+    #         elif p.sum() == 3 and p.max() == 1:
+    #             # _xxx__
+    #             if p[1] and p[2] and p[3]:
+    #                 return 3, [4]
+    #             # __xxx_
+    #             elif p[2] and p[3] and p[4]:
+    #                 return 3, [1]
+    #             # _x_xx_
+    #             elif p[1] and p[3] and p[4]:
+    #                 return 3, [0, 2, 5]
+    #             # _xx_x_
+    #             elif p[1] and p[2] and p[4]:
+    #                 return 3, [0, 3, 5]
+    #         # _xxxx_
+    #         elif p.sum() == 4 and p.max() == 1 and not p[0] and not p[5]:
+    #             return 5, [0, 5]
+    #         # oxxxx_, |xxxx_, r
+    #         elif p[1:5].sum() == 4 and p[1:5].max() == 1 and (p[0] == 0 or p[5] == 0):
+    #             return 4, [p.argmin()]
+    #     return 0, []
+
     @staticmethod
-    def cal_value(p):
+    def get_atk_value_offset(p):
         if len(p) == 5:
+            # xx_xx, x_xxx, _xxxx
+            if p.sum() == 4 and p.max() == 1:
+                return 5, [p.argmin()]
+        elif len(p) == 6:
             if p.sum() == 3 and p.max() == 1:
-                # x_x_x, xx__x
-                if p[0] == 1 and p[4] == 1:
-                    return 0, None
-                # __xxx
-                elif p[0] == 0 and p[1] == 0:
-                    return 0, None
-                # xxx__
-                elif p[3] == 0 and p[4] == 0:
-                    return 0, None
-                # _x_xx
-                elif p[2] == 0 and (p[0] == 0 or p[4] == 0):
-                    return 0, None
-                # _xxx_
-                elif p[1:4].sum() == 3:
-                    return 1, [0, 4]
-            elif p.sum() == 4 and p.max() == 1:
+                # _xxx__
+                if p[1] and p[2] and p[3]:
+                    return 4, [4]
+                # __xxx_
+                if p[2] and p[3] and p[4]:
+                    return 4, [1]
+                # _x_xx_
+                if p[1] and p[3] and p[4]:
+                    return 4, [2]
+                # _xx_x_
+                if p[1] and p[2] and p[4]:
+                    return 4, [3]
+            # o_xxx_, oxxx__, o__xxx, oxx_x_, ox_xx_, o_x_xx, o_xx_x, r
+            elif (p[1:6].sum() == 3 and p[1:6].max() == 1)\
+                    or (p[0:5].sum() == 3 and p[0:5].max() == 1):
+                return 3, np.where(p == 0)[0].tolist()
+            elif p.sum() == 2 and p.max() == 1:
+                # _xx___
+                if p[1] and p[2]:
+                    return 2, [3, 4]
+                # __xx__
+                elif p[2] and p[3]:
+                    return 2, [1, 4]
+                # ___xx_
+                elif p[3] and p[4]:
+                    return 2, [1, 2]
+                # _x_x__
+                elif p[1] and p[3]:
+                    return 2, [2, 4]
+                # __x_x_
+                elif p[2] and p[4]:
+                    return 2, [1, 3]
+        return 0, []
+
+    @staticmethod
+    def get_dfs_value_offset(p):
+        if len(p) == 5:
+            if p.sum() == 4 and p.max() == 1:
                 # xx_xx, x_xxx
                 if p[0] and p[4]:
-                    return 2, [p.argmin()]
-            else:
-                return 0, None
-
+                    return 4, [p.argmin()]
         elif len(p) == 6:
+            if p.sum() == 3 and p.max() == 1:
+                # _xxx__
+                if p[1] and p[2] and p[3]:
+                    return 3, [0, 4]
+                # __xxx_
+                elif p[2] and p[3] and p[4]:
+                    return 3, [1, 5]
+                # _x_xx_
+                elif p[1] and p[3] and p[4]:
+                    return 3, [0, 2, 5]
+                # _xx_x_
+                elif p[1] and p[2] and p[4]:
+                    return 3, [0, 3, 5]
             # _xxxx_
-            if p.sum() == 4 and p.max() == 1 and p[0] == 0 and p[5] == 0:
-                return 5, None
-            # oxxxx_, |xxxx_
+            elif p.sum() == 4 and p.max() == 1 and not p[0] and not p[5]:
+                return 5, []
+            # oxxxx_, |xxxx_, r
             elif p[1:5].sum() == 4 and p[1:5].max() == 1 and (p[0] == 0 or p[5] == 0):
-                return 2, [p.argmin()]
-            # _x_xx_
-            elif p[1] == 1 and p[4] == 1 and p[0] == 0 and p[5] == 0 and p[1:5].sum() == 3:
-                return 1, [i for i, v in enumerate(p.tolist()) if v == 0]
-            else:
-                return 0, None
-
-        return 0, None
+                return 4, [p.argmin()]
+        return 0, []
 
     def gen_dfs_atk_moves(self, atk):
-        board = self.stones.reshape(9, 9).copy()
-        t_board = np.zeros(11 * 11, np.int).reshape(11, 11)
+        board = self.stones.reshape(Board.BOARD_SIZE, Board.BOARD_SIZE).copy()
+        t_board = np.zeros((Board.BOARD_SIZE+2) * (Board.BOARD_SIZE+2), np.int).reshape(Board.BOARD_SIZE+2, Board.BOARD_SIZE+2)
         # add an edge of 3 around the board
         # for example:
         # 0 0 0 0 0
@@ -514,9 +630,9 @@ class Board(object):
         # 3 0 0 1 0 0 3
         # 3 0 0 2 2 0 3
         # 3 3 3 3 3 3 3
-        for i in range(11):
-            for j in range(11):
-                if i in (0, 10) or j in (0, 10):
+        for i in range(Board.BOARD_SIZE+2):
+            for j in range(Board.BOARD_SIZE+2):
+                if i in (0, Board.BOARD_SIZE+1) or j in (0, Board.BOARD_SIZE+1):
                     t_board[i][j] = 3
                 else:
                     t_board[i][j] = board[i - 1][j - 1]
@@ -524,105 +640,195 @@ class Board(object):
         # when dfs, swap (1, 2)
         if not atk:
             m_board = board.copy()
-            for i in range(11):
-                for j in range(11):
+            for i in range(Board.BOARD_SIZE+2):
+                for j in range(Board.BOARD_SIZE+2):
                     if m_board[i][j] == 1:
                         m_board[i][j] = 2
                     elif m_board[i][j] == 2:
                         m_board[i][j] = 1
             board = m_board
 
-        level1 = np.zeros(9*9, np.int).reshape(9, 9)
-        level2 = np.zeros(9*9, np.int).reshape(9, 9)
+        level2 = np.zeros(Board.BOARD_SIZE*Board.BOARD_SIZE, np.int).reshape(Board.BOARD_SIZE, Board.BOARD_SIZE)
+        level3 = np.zeros(Board.BOARD_SIZE*Board.BOARD_SIZE, np.int).reshape(Board.BOARD_SIZE, Board.BOARD_SIZE)
+        level4 = np.zeros(Board.BOARD_SIZE*Board.BOARD_SIZE, np.int).reshape(Board.BOARD_SIZE, Board.BOARD_SIZE)
+        level5 = np.zeros(Board.BOARD_SIZE*Board.BOARD_SIZE, np.int).reshape(Board.BOARD_SIZE, Board.BOARD_SIZE)
+
         # horizonal and vertical
-        for i in range(self.BOARD_SIZE-5+1+2):
-            for j in range(self.BOARD_SIZE-5+1+2):
+        for i in range(self.BOARD_SIZE+2):
+            for j in range(self.BOARD_SIZE+2):
                 p = board[i, j:j+5]
-                v, positions = self.cal_value(p)
-                if v == 1:
-                    for position in positions:
-                        level1[i-1, j+position-1] = 1
+                if atk:
+                    v, positions = self.get_atk_value_offset(p)
+                else:
+                    v, positions = self.get_dfs_value_offset(p)
                 if v == 2:
                     for position in positions:
                         level2[i-1, j+position-1] = 1
+                if v == 3:
+                    for position in positions:
+                        level3[i-1, j+position-1] = 1
+                if v == 4:
+                    for position in positions:
+                        level4[i-1, j+position-1] = 1
+                if v == 5:
+                    for position in positions:
+                        level5[i-1, j+position-1] = 1
 
                 p = board[i:i+5, j]
-                v, positions = self.cal_value(p)
-                if v == 1:
-                    for position in positions:
-                        level1[i+position-1, j-1] = 1
+                if atk:
+                    v, positions = self.get_atk_value_offset(p)
+                else:
+                    v, positions = self.get_dfs_value_offset(p)
                 if v == 2:
                     for position in positions:
                         level2[i+position-1, j-1] = 1
+                if v == 3:
+                    for position in positions:
+                        level3[i+position-1, j-1] = 1
+                if v == 4:
+                    for position in positions:
+                        level4[i+position-1, j-1] = 1
+                if v == 5:
+                    for position in positions:
+                        level5[i+position-1, j-1] = 1
 
                 p = board[i, j:j+6]
-                v, positions = self.cal_value(p)
-                if v == 1:
-                    for position in positions:
-                        level1[i-1, j+position-1] = 1
+                if atk:
+                    v, positions = self.get_atk_value_offset(p)
+                else:
+                    v, positions = self.get_dfs_value_offset(p)
                 if v == 2:
                     for position in positions:
                         level2[i-1, j+position-1] = 1
+                if v == 3:
+                    for position in positions:
+                        level3[i-1, j+position-1] = 1
+                if v == 4:
+                    for position in positions:
+                        level4[i-1, j+position-1] = 1
+                if v == 5:
+                    for position in positions:
+                        level5[i-1, j+position-1] = 1
 
                 p = board[i:i+6, j]
-                v, positions = self.cal_value(p)
-                if v == 1:
-                    for position in positions:
-                        level1[i+position-1, j-1] = 1
+                if atk:
+                    v, positions = self.get_atk_value_offset(p)
+                else:
+                    v, positions = self.get_dfs_value_offset(p)
                 if v == 2:
                     for position in positions:
                         level2[i+position-1, j-1] = 1
+                if v == 3:
+                    for position in positions:
+                        level3[i+position-1, j-1] = 1
+                if v == 4:
+                    for position in positions:
+                        level4[i+position-1, j-1] = 1
+                if v == 5:
+                    for position in positions:
+                        level5[i+position-1, j-1] = 1
 
         # diagonal
-        for offset in range(-4, 4+1):
+        for offset in range(-(Board.BOARD_SIZE-5), (Board.BOARD_SIZE-5)+1):
             p = board.diagonal(offset)
-            for i in range(11-offset-5+1):
-                v, positions = self.cal_value(p[i:i+5])
-                if v == 1:
-                    for position in positions:
-                        x, y = self.index_by_diagonal(offset, i, position)
-                        level1[x, y] = 1
+            for i in range(Board.BOARD_SIZE+2-offset-5+1):
+                if atk:
+                    v, positions = self.get_atk_value_offset(p[i:i+5])
+                else:
+                    v, positions = self.get_dfs_value_offset(p[i:i+5])
+                # v, positions = self.get_value_and_offset(p[i:i+5])
                 if v == 2:
                     for position in positions:
                         x, y = self.index_by_diagonal(offset, i, position)
                         level2[x, y] = 1
-                v, positions = self.cal_value(p[i:i+6])
-                if v == 1:
+                if v == 3:
                     for position in positions:
                         x, y = self.index_by_diagonal(offset, i, position)
-                        level1[x, y] = 1
+                        level3[x, y] = 1
+                if v == 4:
+                    for position in positions:
+                        x, y = self.index_by_diagonal(offset, i, position)
+                        level4[x, y] = 1
+                if v == 5:
+                    for position in positions:
+                        x, y = self.index_by_diagonal(offset, i, position)
+                        level5[x, y] = 1
+                if atk:
+                    v, positions = self.get_atk_value_offset(p[i:i+6])
+                else:
+                    v, positions = self.get_dfs_value_offset(p[i:i+6])
+                # v, positions = self.get_value_and_offset(p[i:i+6])
                 if v == 2:
                     for position in positions:
                         x, y = self.index_by_diagonal(offset, i, position)
                         level2[x, y] = 1
+                if v == 3:
+                    for position in positions:
+                        x, y = self.index_by_diagonal(offset, i, position)
+                        level3[x, y] = 1
+                if v == 4:
+                    for position in positions:
+                        x, y = self.index_by_diagonal(offset, i, position)
+                        level4[x, y] = 1
+                if v == 5:
+                    for position in positions:
+                        x, y = self.index_by_diagonal(offset, i, position)
+                        level5[x, y] = 1
 
         # swap rows to compute another diagonal
         m_board = board.copy()
-        for i in range(11):
-            m_board[i] = board[10 - i]
+        for i in range(Board.BOARD_SIZE+2):
+            m_board[i] = board[Board.BOARD_SIZE+1 - i]
         # another diagonal
-        for offset in range(-4, 4+1):
+        for offset in range(-(Board.BOARD_SIZE-5), (Board.BOARD_SIZE-5)+1):
             p = m_board.diagonal(offset)
-            for i in range(11-offset-5+1):
-                v, positions = self.cal_value(p[i:i+5])
-                if v == 1:
-                    for position in positions:
-                        x, y = self.index_by_diagonal(offset, i, position)
-                        level1[8-x, y] = 1
+            for i in range(Board.BOARD_SIZE+2-offset-5+1):
+                if atk:
+                    v, positions = self.get_atk_value_offset(p[i:i+5])
+                else:
+                    v, positions = self.get_dfs_value_offset(p[i:i+5])
+                # v, positions = self.get_value_and_offset(p[i:i+5])
                 if v == 2:
                     for position in positions:
                         x, y = self.index_by_diagonal(offset, i, position)
-                        level2[8-x, y] = 1
-                v, positions = self.cal_value(p[i:i+6])
-                if v == 1:
+                        level2[Board.BOARD_SIZE-1-x, y] = 1
+                if v == 3:
                     for position in positions:
                         x, y = self.index_by_diagonal(offset, i, position)
-                        level1[8-x, y] = 1
+                        level3[Board.BOARD_SIZE-1-x, y] = 1
+                if v == 4:
+                    for position in positions:
+                        x, y = self.index_by_diagonal(offset, i, position)
+                        level4[Board.BOARD_SIZE-1-x, y] = 1
+                if v == 5:
+                    for position in positions:
+                        x, y = self.index_by_diagonal(offset, i, position)
+                        level5[Board.BOARD_SIZE-1-x, y] = 1
+                if atk:
+                    v, positions = self.get_atk_value_offset(p[i:i+6])
+                else:
+                    v, positions = self.get_dfs_value_offset(p[i:i+6])
+                # v, positions = self.get_value_and_offset(p[i:i+6])
                 if v == 2:
                     for position in positions:
                         x, y = self.index_by_diagonal(offset, i, position)
-                        level2[8-x, y] = 1
-        return level1, level2
+                        level2[Board.BOARD_SIZE-1-x, y] = 1
+                if v == 3:
+                    for position in positions:
+                        x, y = self.index_by_diagonal(offset, i, position)
+                        level3[Board.BOARD_SIZE-1-x, y] = 1
+                if v == 4:
+                    for position in positions:
+                        x, y = self.index_by_diagonal(offset, i, position)
+                        level4[Board.BOARD_SIZE-1-x, y] = 1
+                if v == 5:
+                    for position in positions:
+                        x, y = self.index_by_diagonal(offset, i, position)
+                        level5[Board.BOARD_SIZE-1-x, y] = 1
+        if atk:
+            return level2, level3, level4, level5
+        else:
+            return level3, level4
 
     @staticmethod
     def index_by_diagonal(offset, i, position):
@@ -630,3 +836,10 @@ class Board(object):
             return i+position-1, offset+i+position-1
         if offset < 0:
             return 0-offset+i+position-1, i+position-1
+
+    def reverse(self):
+        for i in range(self.stones.size):
+            if self.stones[i] == 1:
+                self.stones[i] = 2
+            elif self.stones[i] == 2:
+                self.stones[i] = 1

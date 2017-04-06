@@ -1,8 +1,5 @@
 from env import Env
-from board1 import Board
-from pg import PolicyNetwork
-import torch
-from torch.autograd import Variable
+
 
 
 env = Env()
@@ -10,15 +7,29 @@ env = Env()
 # env.render()
 # a = 1
 
-model = PolicyNetwork()
-model.type(torch.FloatTensor)
-state = torch.from_numpy(env.make_observation_7())
-state = state.type(torch.FloatTensor)
-state = state.unsqueeze(0)
-states = []
-states.append(state)
-states.append(state)
-states = torch.cat(states)
-a = model(Variable(states)).data
-print a
+env.board.move(84, 1)
+env.board.move(env.oppo_2_move(), 2)
+env.render()
+env.board.move(env.random_move(), 1)
+env.board.move(env.oppo_2_move(), 2)
+env.render()
+env.board.move(env.random_move(), 1)
+env.board.move(env.oppo_2_move(), 2)
+env.render()
+env.board.move(env.random_move(), 1)
+env.board.move(env.oppo_2_move(), 2)
+env.render()
+env.board.move(env.random_move(), 1)
+env.board.move(env.oppo_2_move(), 2)
+env.render()
+env.board.move(env.random_move(), 1)
+env.board.move(env.oppo_2_move(), 2)
+env.render()
+env.board.move(env.random_move(), 1)
+env.board.move(env.oppo_2_move(), 2)
+env.render()
+env.board.move(env.random_move(), 1)
+env.board.move(env.oppo_2_move(), 2)
+env.render()
+a = 0
 

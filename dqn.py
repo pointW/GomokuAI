@@ -6,6 +6,7 @@ import math
 from collections import namedtuple
 from itertools import count
 from env import Env
+from board1 import Board
 
 import torch
 import torch.nn as nn
@@ -47,7 +48,7 @@ class ReplayMemory(object):
 class DQN(nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
-        self.conv1 = nn.Conv2d(7, 64, kernel_size=5, stride=1, padding=2)
+        self.conv1 = nn.Conv2d(9, 64, kernel_size=5, stride=1, padding=2)
         self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
         self.bn2 = nn.BatchNorm2d(128)
@@ -59,7 +60,7 @@ class DQN(nn.Module):
         self.bn5 = nn.BatchNorm2d(128)
         self.conv6 = nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1)
         self.bn6 = nn.BatchNorm2d(128)
-        self.fc = nn.Linear(128*9*9, 81)
+        self.fc = nn.Linear(128*Board.BOARD_SIZE_SQ, Board.BOARD_SIZE_SQ)
 
         # self.fc1 = nn.Linear(64*9*9, 1024)
         # self.fc2 = nn.Linear(1024, 256)
@@ -104,7 +105,7 @@ env.reset()
 BATCH_SIZE = 128
 GAMMA = 0.9
 EPS_START = 0.9
-EPS_END = 0.05
+EPS_END = 0.1
 EPS_DECAY = 200
 USE_CUDA = torch.cuda.is_available()
 dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
@@ -122,7 +123,7 @@ model.type(dtype)
 def select_action(state):
     model.steps_done += 1
     if state[0][0].sum() == 0:
-        return 40
+        return 84
     sample = random.random()
     eps_threshold = EPS_END + (EPS_START - EPS_END) * math.exp(-1. * model.steps_done / EPS_DECAY)
     if sample > eps_threshold:
@@ -130,19 +131,21 @@ def select_action(state):
         moves = data[1][0]
         q = data[0][0]
         k = 0
-        m = moves[80 - k]
-        print 'prepare to move on (%d, %d), q = %f' % (m / 9, m % 9, q[80-k])
-        while not state[0][2][m / 9][m % 9]:
+        m = moves[Board.BOARD_SIZE_SQ-1 - k]
+        print 'prepare to move on (%d, %d), q = %f' % (m / Board.BOARD_SIZE, m % Board.BOARD_SIZE, q[Board.BOARD_SIZE_SQ-1-k])
+        while not state[0][2][m / Board.BOARD_SIZE][m % Board.BOARD_SIZE]:
             k += 1
-            m = moves[80-k]
-            print 'prepare to move on (%d, %d), q = %f' % (m / 9, m % 9, q[80-k])
+            m = moves[Board.BOARD_SIZE_SQ-1 -k]
+            print 'prepare to move on (%d, %d), q = %f' % (m / Board.BOARD_SIZE, m % Board.BOARD_SIZE, q[Board.BOARD_SIZE_SQ-1-k])
         return m
     else:
-        rand = random.randrange(81)
-        print 'random move (%d, %d)' % (rand / 9, rand % 9)
-        while not state[0][2][rand / 9][rand % 9]:
-            rand = random.randrange(81)
-            print 'random move (%d, %d)' % (rand / 9, rand % 9)
+        rand = env.quick_play()
+        # rand = random.randrange(Board.BOARD_SIZE_SQ)
+        print 'random move (%d, %d)' % (rand / Board.BOARD_SIZE, rand % Board.BOARD_SIZE)
+        while not state[0][2][rand / Board.BOARD_SIZE][rand % Board.BOARD_SIZE]:
+            rand = env.quick_play()
+            # rand = random.randrange(Board.BOARD_SIZE_SQ)
+            print 'random move (%d, %d)' % (rand / Board.BOARD_SIZE, rand % Board.BOARD_SIZE)
         return rand
 
 
@@ -181,6 +184,8 @@ def optimize_model():
 
     optimizer.zero_grad()
     loss.backward()
+    # for param in model.parameters():
+    #     param.grad.data.clamp_(-1, 1)
     optimizer.step()
     print 'steps_done %d' % model.steps_done
     if model.steps_done % 100 == 0:
@@ -188,11 +193,11 @@ def optimize_model():
         print 'model saved'
 
 env.reset()
-observation = env.make_observation_7()
+observation = env.make_observation_9()
 while True:
     state = torch.from_numpy(observation).unsqueeze(0).type(dtype)
     action = select_action(state)
-    observation, reward, done, _ = env.step_pg(action)
+    observation, reward, done, _ = env.step_o9(action)
     env.render()
     print 'reward = %.1f' % reward
     if not done:
@@ -206,7 +211,7 @@ while True:
             model.win_count += 1
         print 'win rate %d / %d' % (model.win_count, model.matches_done)
         env.reset()
-        observation = env.make_observation_7()
+        observation = env.make_observation_9()
     reward = torch.FloatTensor([reward])
     model.memory.push(state, torch.LongTensor([[action]]), next_state, reward)
     optimize_model()
